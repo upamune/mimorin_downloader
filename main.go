@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+	"runtime"
 )
 
 func GetJSON() (urls []string) {
@@ -73,6 +74,8 @@ func main() {
 	if err := os.Mkdir(dirName, 0777); err != nil {
 		panic(err)
 	}
+	cpus := runtime.NumCPU()
+	runtime.GOMAXPROCS(cpus)
 	start := time.Now()
 	statusChan := make(chan string)
 	for idx, url := range urls {
