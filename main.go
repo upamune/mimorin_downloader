@@ -55,7 +55,6 @@ func saveImageFile(url string, filePath string) (err error) {
 	}
 	defer response.Body.Close()
 
-	fmt.Println("status:", response.Status)
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
@@ -75,10 +74,16 @@ func main() {
 		panic(err)
 	}
 	start := time.Now()
+	statusChan := make(chan string)
 	for idx, url := range urls {
 		filePath := dirName + "/" + "mimorin" + strconv.Itoa(idx) + ".jpg"
-		saveImageFile(url, filePath)
-		println("Downloading ", filePath)
+		go func(url, filePath string){
+			saveImageFile(url, filePath)
+			statusChan <- ("Downloading... " + filePath)
+		}(url,filePath)
+	}
+	for i := 0; i < len(urls); i++{
+		fmt.Println(<-statusChan)
 	}
 	end := time.Now()
 
