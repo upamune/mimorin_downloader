@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"time"
-	"runtime"
 )
 
 func GetJSON() (urls []string) {
@@ -69,8 +69,9 @@ func saveImageFile(url string, filePath string) (err error) {
 func main() {
 
 	urls := GetJSON()
+	timeStamp := time.Now().Format("20060102150405")
 
-	dirName := "mimorin"
+	dirName := "mimorin-" + timeStamp
 	if err := os.Mkdir(dirName, 0777); err != nil {
 		panic(err)
 	}
@@ -80,12 +81,12 @@ func main() {
 	statusChan := make(chan string)
 	for idx, url := range urls {
 		filePath := dirName + "/" + "mimorin" + strconv.Itoa(idx) + ".jpg"
-		go func(url, filePath string){
+		go func(url, filePath string) {
 			saveImageFile(url, filePath)
 			statusChan <- ("Downloading... " + filePath)
-		}(url,filePath)
+		}(url, filePath)
 	}
-	for i := 0; i < len(urls); i++{
+	for i := 0; i < len(urls); i++ {
 		fmt.Println(<-statusChan)
 	}
 	end := time.Now()
