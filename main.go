@@ -1,16 +1,19 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/jmoiron/jsonq"
 )
 
 func GetJSON() (urls []string) {
@@ -36,14 +39,15 @@ func GetJSON() (urls []string) {
 	body, _ := ioutil.ReadAll(response.Body)
 	defer response.Body.Close()
 
-	// println(string(body))
+	jsonStr := string(body)
+	data := map[string]interface{}{}
+	dec := json.NewDecoder(strings.NewReader(jsonStr))
+	dec.Decode(&data)
+	jq := jsonq.NewQuery(data)
 
-	// re := regexp.MustCompile(`"MediaUrl":"(.+?)",`)
-	re := regexp.MustCompile(`"Title":.+?"MediaUrl":"(.+?)",`)
-	matches := re.FindAllStringSubmatch(string(body), -1)
-
-	for _, url := range matches {
-		urls = append(urls, url[1])
+	for i := 0; i < 50; i++ {
+		url, _ := jq.String("d", "results", strconv.Itoa(i), "MediaUrl")
+		urls = append(urls, url)
 	}
 
 	return
