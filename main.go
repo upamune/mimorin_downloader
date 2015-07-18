@@ -1,19 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
-	"strconv"
-	"time"
 	"runtime"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jmoiron/jsonq"
 )
 
-func GetJSON() (urls []string) {
+func GetJSON() (urls [][]string) {
 	client := &http.Client{}
 	URL := "https://api.datamarket.azure.com/Bing/Search/Image"
 	apikey := os.Getenv("BING_API_KEY")
@@ -36,14 +39,28 @@ func GetJSON() (urls []string) {
 	body, _ := ioutil.ReadAll(response.Body)
 	defer response.Body.Close()
 
-	// println(string(body))
+	jsonStr := string(body)
+	data := map[string]interface{}{}
+	dec := json.NewDecoder(strings.NewReader(jsonStr))
+	dec.Decode(&data)
+	jq := jsonq.NewQuery(data)
 
-	// re := regexp.MustCompile(`"MediaUrl":"(.+?)",`)
-	re := regexp.MustCompile(`"Title":.+?"MediaUrl":"(.+?)",`)
-	matches := re.FindAllStringSubmatch(string(body), -1)
+	for i := 0; i < 50; i++ {
+		url, _ := jq.String("d", "results", strconv.Itoa(i), "MediaUrl")
+		contentType, _ := jq.String("d", "results", strconv.Itoa(i), "ContentType")
+		var imageType string
+		switch contentType {
+		case "image/jpeg":
+			imageType = "jpeg"
+		case "image/png":
+			imageType = "png"
+		case "image/gif":
+			imageType = "gif"
+		default:
+			imageType = "jpeg"
+		}
 
-	for _, url := range matches {
-		urls = append(urls, url[1])
+		urls = append(urls, []string{url, imageType})
 	}
 
 	return
@@ -69,8 +86,9 @@ func saveImageFile(url string, filePath string) (err error) {
 func main() {
 
 	urls := GetJSON()
+	timeStamp := time.Now().Format("20060102150405")
 
-	dirName := "mimorin"
+	dirName := "mimorin-" + timeStamp
 	if err := os.Mkdir(dirName, 0777); err != nil {
 		panic(err)
 	}
@@ -79,13 +97,13 @@ func main() {
 	start := time.Now()
 	statusChan := make(chan string)
 	for idx, url := range urls {
-		filePath := dirName + "/" + "mimorin" + strconv.Itoa(idx) + ".jpg"
-		go func(url, filePath string){
+		filePath := dirName + "/" + "mimorin" + strconv.Itoa(idx) + "." + url[1]
+		go func(url, filePath string) {
 			saveImageFile(url, filePath)
 			statusChan <- ("Downloading... " + filePath)
-		}(url,filePath)
+		}(url[0], filePath)
 	}
-	for i := 0; i < len(urls); i++{
+	for i := 0; i < len(urls); i++ {
 		fmt.Println(<-statusChan)
 	}
 	end := time.Now()
