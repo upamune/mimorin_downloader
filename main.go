@@ -16,7 +16,7 @@ import (
 	"github.com/jmoiron/jsonq"
 )
 
-func GetJSON() (urls []string) {
+func GetJSON() (urls [][]string) {
 	client := &http.Client{}
 	URL := "https://api.datamarket.azure.com/Bing/Search/Image"
 	apikey := os.Getenv("BING_API_KEY")
@@ -47,7 +47,20 @@ func GetJSON() (urls []string) {
 
 	for i := 0; i < 50; i++ {
 		url, _ := jq.String("d", "results", strconv.Itoa(i), "MediaUrl")
-		urls = append(urls, url)
+		contentType, _ := jq.String("d", "results", strconv.Itoa(i), "ContentType")
+		var imageType string
+		switch contentType {
+		case "image/jpeg":
+			imageType = "jpeg"
+		case "image/png":
+			imageType = "png"
+		case "image/gif":
+			imageType = "gif"
+		default:
+			imageType = "jpeg"
+		}
+
+		urls = append(urls, []string{url, imageType})
 	}
 
 	return
@@ -84,11 +97,11 @@ func main() {
 	start := time.Now()
 	statusChan := make(chan string)
 	for idx, url := range urls {
-		filePath := dirName + "/" + "mimorin" + strconv.Itoa(idx) + ".jpg"
+		filePath := dirName + "/" + "mimorin" + strconv.Itoa(idx) + "." + url[1]
 		go func(url, filePath string) {
 			saveImageFile(url, filePath)
 			statusChan <- ("Downloading... " + filePath)
-		}(url, filePath)
+		}(url[0], filePath)
 	}
 	for i := 0; i < len(urls); i++ {
 		fmt.Println(<-statusChan)
