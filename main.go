@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,13 +17,35 @@ import (
 	"github.com/jmoiron/jsonq"
 )
 
-func GetJSON() (urls [][]string) {
+func getAPIKey() (apikey string, err error) {
+	apikey = os.Getenv("BING_API_KEY")
+	if apikey == "" {
+		return "", errors.New("Not Set APIKEY")
+	}
+	return
+}
+
+func getImageType(contentType string) (imageType string, err error) {
+	switch contentType {
+	case "image/jpeg":
+		imageType = "jpeg"
+	case "image/png":
+		imageType = "png"
+	case "image/gif":
+		imageType = "gif"
+	default:
+		return "", errors.New("Unknown ContentType")
+	}
+
+	return
+}
+
+func getJSON() (json string, err error) {
 	client := &http.Client{}
 	URL := "https://api.datamarket.azure.com/Bing/Search/Image"
-	apikey := os.Getenv("BING_API_KEY")
-	if apikey == "" {
-		fmt.Println("ENV is not set")
-		panic(apikey)
+	apikey, err := getAPIKey()
+	if err != nil {
+		return "", err
 	}
 
 	values := url.Values{}
@@ -30,7 +53,7 @@ func GetJSON() (urls [][]string) {
 	values.Add("$format", "json")
 	req, err := http.NewRequest("GET", URL, nil)
 	if err != nil {
-		println("err: ", err)
+		return "", err
 	}
 
 	req.URL.RawQuery = values.Encode()
@@ -39,7 +62,13 @@ func GetJSON() (urls [][]string) {
 	body, _ := ioutil.ReadAll(response.Body)
 	defer response.Body.Close()
 
-	jsonStr := string(body)
+	json = string(body)
+
+	return
+}
+
+func parseJSON(jsonStr string) (urls [][]string, err error) {
+
 	data := map[string]interface{}{}
 	dec := json.NewDecoder(strings.NewReader(jsonStr))
 	dec.Decode(&data)
@@ -48,21 +77,13 @@ func GetJSON() (urls [][]string) {
 	for i := 0; i < 50; i++ {
 		url, _ := jq.String("d", "results", strconv.Itoa(i), "MediaUrl")
 		contentType, _ := jq.String("d", "results", strconv.Itoa(i), "ContentType")
-		var imageType string
-		switch contentType {
-		case "image/jpeg":
-			imageType = "jpeg"
-		case "image/png":
-			imageType = "png"
-		case "image/gif":
-			imageType = "gif"
-		default:
-			imageType = "jpeg"
+		imageType, err := getImageType(contentType)
+		if err != nil {
+			return nil, err
 		}
 
 		urls = append(urls, []string{url, imageType})
 	}
-
 	return
 }
 
@@ -85,7 +106,9 @@ func saveImageFile(url string, filePath string) (err error) {
 
 func main() {
 
-	urls := GetJSON()
+	jsonStr, _ := getJSON()
+	urls, _ := parseJSON(jsonStr)
+
 	timeStamp := time.Now().Format("20060102150405")
 
 	dirName := "mimorin-" + timeStamp
@@ -94,7 +117,9 @@ func main() {
 	}
 	cpus := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpus)
+
 	start := time.Now()
+
 	statusChan := make(chan string)
 	for idx, url := range urls {
 		filePath := dirName + "/" + "mimorin" + strconv.Itoa(idx) + "." + url[1]
