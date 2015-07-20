@@ -40,12 +40,12 @@ func getImageType(contentType string) (imageType string, err error) {
 	return
 }
 
-func GetJSON() (urls [][]string) {
+func getJSON() (json string, err error) {
 	client := &http.Client{}
 	URL := "https://api.datamarket.azure.com/Bing/Search/Image"
 	apikey, err := getAPIKey()
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	values := url.Values{}
@@ -53,7 +53,7 @@ func GetJSON() (urls [][]string) {
 	values.Add("$format", "json")
 	req, err := http.NewRequest("GET", URL, nil)
 	if err != nil {
-		println(err)
+		return "", err
 	}
 
 	req.URL.RawQuery = values.Encode()
@@ -62,7 +62,13 @@ func GetJSON() (urls [][]string) {
 	body, _ := ioutil.ReadAll(response.Body)
 	defer response.Body.Close()
 
-	jsonStr := string(body)
+	json = string(body)
+
+	return
+}
+
+func parseJSON(jsonStr string) (urls [][]string, err error) {
+
 	data := map[string]interface{}{}
 	dec := json.NewDecoder(strings.NewReader(jsonStr))
 	dec.Decode(&data)
@@ -73,12 +79,11 @@ func GetJSON() (urls [][]string) {
 		contentType, _ := jq.String("d", "results", strconv.Itoa(i), "ContentType")
 		imageType, err := getImageType(contentType)
 		if err != nil {
-			fmt.Println(err)
+			return nil, err
 		}
 
 		urls = append(urls, []string{url, imageType})
 	}
-
 	return
 }
 
@@ -101,7 +106,9 @@ func saveImageFile(url string, filePath string) (err error) {
 
 func main() {
 
-	urls := GetJSON()
+	jsonStr, _ := getJSON()
+	urls, _ := parseJSON(jsonStr)
+
 	timeStamp := time.Now().Format("20060102150405")
 
 	dirName := "mimorin-" + timeStamp
@@ -110,7 +117,9 @@ func main() {
 	}
 	cpus := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpus)
+
 	start := time.Now()
+
 	statusChan := make(chan string)
 	for idx, url := range urls {
 		filePath := dirName + "/" + "mimorin" + strconv.Itoa(idx) + "." + url[1]
