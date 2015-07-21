@@ -106,8 +106,14 @@ func saveImageFile(url string, filePath string) (err error) {
 
 func main() {
 
-	jsonStr, _ := getJSON()
-	urls, _ := parseJSON(jsonStr)
+	jsonStr, err := getJSON()
+	if err != nil {
+		panic(err)
+	}
+	urls, err := parseJSON(jsonStr)
+	if err != nil {
+		panic(err)
+	}
 
 	timeStamp := time.Now().Format("20060102150405")
 
