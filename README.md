@@ -1,4 +1,5 @@
 # mimorin_downloader
+[![Circle CI](https://circleci.com/gh/upamune/mimorin_downloader/tree/master.svg?style=svg)](https://circleci.com/gh/upamune/mimorin_downloader/tree/master)
 
 
 ## What is this ?
