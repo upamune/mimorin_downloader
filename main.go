@@ -126,16 +126,10 @@ func main() {
 
 	start := time.Now()
 
-	statusChan := make(chan string)
 	for idx, url := range urls {
 		filePath := dirName + "/" + "mimorin" + strconv.Itoa(idx) + "." + url[1]
-		go func(url, filePath string) {
-			saveImageFile(url, filePath)
-			statusChan <- ("Downloading... " + filePath)
-		}(url[0], filePath)
-	}
-	for i := 0; i < len(urls); i++ {
-		fmt.Println(<-statusChan)
+		saveImageFile(url[0], filePath)
+		fmt.Println("Downloading... " + filePath)
 	}
 	end := time.Now()
 
